@@ -100,14 +100,14 @@ DEFAULTS: dict = {
     "trading_day_start_hour_sgt":  8,
     "midnight_guard_min":          0,
     # Trade caps
-    "max_trades_day":              20,
+    "max_trades_day":              4,
     "max_wins_day":                1,
     "max_losing_trades_day":       3,
     "max_losing_trades_session":   2,
     "max_concurrent_trades":       1,
-    "max_trades_london":           10,
-    "max_trades_us":               10,
-    "max_trades_asian":            3,
+    "max_trades_london":           2,
+    "max_trades_us":               2,
+    "max_trades_asian":            1,
     # Cooldowns / guards
     "loss_streak_cooldown_min":    60,
     "consecutive_sl_guard":        2,
@@ -215,11 +215,16 @@ def ensure_persistent_settings() -> Path:
         if bundled_version and persistent.get("version") != bundled_version:
             changed["version"] = bundled_version
 
-        # v2.2 upgrade: force-overwrite keys whose VALUES changed this release
+        # v2.3 upgrade: force-overwrite keys whose VALUES changed this release
         # (not just newly-added keys). Runs only when the persistent version
         # differs from the bundled version, so it fires once per upgrade and then
         # leaves these keys alone. These are NOT auto-tuner-owned.
-        VERSION_FORCE_SYNC_KEYS = ("breakeven_enabled", "breakeven_trigger_usd")
+        VERSION_FORCE_SYNC_KEYS = (
+            "breakeven_enabled", "breakeven_trigger_usd",
+            # v2.3: push the tuned trade-count caps onto existing volumes
+            "max_trades_day", "max_wins_day",
+            "max_trades_london", "max_trades_us", "max_trades_asian",
+        )
         if bundled_version and persistent.get("version") != bundled_version:
             for _fk in VERSION_FORCE_SYNC_KEYS:
                 if _fk in effective_defaults and persistent.get(_fk) != effective_defaults[_fk]:

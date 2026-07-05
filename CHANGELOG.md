@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.3 — 2026-07-05 — Force-sync tuned caps onto the volume
+
+Built from the uploaded v2.2 package (caps already edited to 4/2/2/1). Strategy
+unchanged. This release makes those caps actually apply on Railway.
+
+Problem: config_loader only injects MISSING keys and never overwrites existing
+volume values, so the hand-edited cap block was ignored on deploy — the volume
+kept 20/10/10/3 (visible on the startup card as London 10 / US 10 / Asian 3).
+
+Fix:
+- Added max_trades_day, max_wins_day, max_trades_london/us/asian to
+  VERSION_FORCE_SYNC_KEYS (version-gated, one-time overwrite on upgrade).
+- Updated DEFAULTS to 4 / 2 / 2 / 1 and bumped version 2.2 → 2.3 so the gate fires.
+- Auto-tuner keys (signal_threshold, rr_ratio, atr_sl_multiplier, cooldowns) are
+  NOT in the set and are preserved.
+
+Effective caps after deploy: day 4, wins 1/session, London 2 / US 2 / Asian 1,
+loss caps 3/day & 2/session, 10% equity cap, 6h post-win cooldown (all unchanged).
+Startup card should now read LONDON cap 2 / US cap 2 / ASIAN cap 1.
+
+
+# Changelog
+
 ## v2.2 — 2026-07-05 — Startup visibility + version roll-up
 
 Strategy unchanged. Operational/visibility update on top of v2.1.1.
