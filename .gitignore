@@ -1,0 +1,40 @@
+# Secrets — never commit credentials
+secrets.json
+# settings.json is gitignored so live production settings are never overwritten
+# by a git pull. If this file is already tracked in your repo, untrack it once:
+#   git rm --cached settings.json && git commit -m "chore: untrack settings.json"
+# The bot will recreate it from settings.json.example on first boot via
+# config_loader.ensure_persistent_settings().
+
+# Runtime data files
+trade_history.json
+trade_history_archive.json
+score_cache.json
+signal_cache.json
+ops_state.json
+runtime_state.json
+calendar_cache.json
+cpr_gold.db
+cpr_gold.db-shm
+cpr_gold.db-wal
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs
+*.log
+logs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS / editor artefacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
