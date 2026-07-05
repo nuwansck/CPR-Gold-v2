@@ -77,7 +77,7 @@
   "consecutive_sl_guard": 2,
   "sl_direction_cooldown_min": 180,
   "min_reentry_wait_min": 10,
-  "same_setup_cooldown_min": 10,
+  "same_setup_cooldown_min": 30,
   "post_win_candle_block": true,
   "post_win_cooldown_hours": 6,
   "_comment_infra": "5-min cycle, 90-day rolling history, daily auto-tuner at 08:00 SGT.",
