@@ -27,7 +27,7 @@ SL, TP, and RR checks are centralized in `bot.py`; `signals.py` scores the setup
 - Win cap: 1 win/session, then sit out.
 - Loss caps: 3/day, 2/session.
 - Direction and post-win cooldowns; minimum re-entry wait.
-- Calendar hard lock: 30 minutes before/after high-impact USD news (fail-closed).
+- Calendar hard lock: 30 minutes before/after high-impact USD news. Fail-closed: a missing/unreadable calendar blocks new entries until the first successful fetch (`news_fail_closed: true`).
 
 ## 5. Sessions (SGT)
 

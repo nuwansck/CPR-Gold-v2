@@ -1071,6 +1071,7 @@ def _guard_phase(db, run_id, settings, alert, trader, history, now_sgt, today, d
             after_minutes=int(settings.get("news_block_after_min", 30)),
             lookahead_minutes=int(settings.get("news_lookahead_min", 120)),
             medium_penalty=int(settings.get("news_medium_penalty_score", -1)),
+            fail_closed=bool(settings.get("news_fail_closed", True)),
         )
         news_status  = nf.get_status_now()
         blocked      = bool(news_status.get("blocked"))

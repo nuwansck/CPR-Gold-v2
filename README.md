@@ -42,7 +42,7 @@ Risk is a fixed dollar amount keyed to score — **$100** for score ≥ 5 and **
 - Win cap: 1 win per session, then sit out the rest of that session.
 - Loss caps: 3 losses/day, 2 losses/session.
 - Direction cooldown after consecutive SLs, post-win cooldown, and a minimum re-entry wait.
-- Calendar hard lock: no entries within 30 minutes before/after high-impact USD news (fail-closed).
+- Calendar hard lock: no entries within 30 minutes before/after high-impact USD news. Fail-closed (`news_fail_closed: true`): if the calendar cache is missing/unreadable, new entries are blocked until the first successful fetch (matches Rogue-H1).
 - Daily auto-tuner reviews rolling history and adjusts parameters within safe bounds.
 
 ## Sessions (SGT)

@@ -36,12 +36,21 @@ def run_startup_checks() -> list[str]:
     if not 0.05 <= xau_margin_override <= 1:
         warnings.append('xau_margin_rate_override must be between 0.05 and 1.00')
 
-    # L-04 fix: warn if the news filter has no calendar data yet
+    # Warn if the news filter has no calendar data yet. Message reflects the
+    # configured fail posture: fail-closed blocks entries until the first fetch;
+    # fail-open passes trades until then.
     if not CALENDAR_CACHE_FILE.exists():
-        warnings.append(
-            'calendar_cache.json not found — news filter will pass all trades until '
-            'the first successful calendar fetch completes. This resolves automatically '
-            'on the first bot cycle.'
-        )
+        if bool(settings.get('news_fail_closed', True)):
+            warnings.append(
+                'calendar_cache.json not found — news_fail_closed=true, so the news filter will '
+                'block new entries until the first successful calendar fetch completes. This '
+                'resolves automatically on the first bot cycle.'
+            )
+        else:
+            warnings.append(
+                'calendar_cache.json not found — news_fail_closed=false, so the news filter will '
+                'pass all trades until the first successful calendar fetch completes. This '
+                'resolves automatically on the first bot cycle.'
+            )
 
     return warnings

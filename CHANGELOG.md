@@ -12,6 +12,9 @@ Strategy:
 - M15 CPR breakout, H1 EMA50 + H4 EMA50 dual trend filter, R2/S2 exhaustion guard.
 - Entry threshold 4; sessions Asian/London/US (SGT) with per-session thresholds and caps.
 
+News safety:
+- Fail-closed news filter (`news_fail_closed: true`): if the economic-calendar cache is missing or unreadable, new entries are blocked until the first successful fetch, instead of trading through. Matches Rogue-H1. Reflected in the startup Telegram card and the startup calendar warning.
+
 Guards & protection:
 - Win cap (1 win/session), loss caps (3/day, 2/session), direction cooldown, post-win cooldown, min re-entry wait, 30/30-minute calendar hard lock (fail-closed).
 

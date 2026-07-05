@@ -238,6 +238,7 @@ def main():
             position_partial_usd=int(settings.get('position_partial_usd', 66)),
             session_thresholds=settings.get('session_thresholds', {}),
             h1_filter_enabled=bool(settings.get('h1_trend_filter_enabled', True)),
+            news_fail_closed=bool(settings.get('news_fail_closed', True)),
         ))
     except Exception as _e:
         logger.warning('Could not send startup Telegram alert: %s', _e)

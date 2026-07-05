@@ -107,6 +107,7 @@ DEFAULTS: dict = {
     "news_filter_enabled":         True,
     "news_block_before_min":       30,
     "news_block_after_min":        30,
+    "news_fail_closed":             True,
     "news_lookahead_min":          120,
     "news_medium_penalty_score":   -1,
     # Calendar / reporting / infrastructure

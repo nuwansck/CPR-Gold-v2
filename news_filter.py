@@ -36,11 +36,16 @@ class NewsFilter:
     ]
 
     def __init__(self, before_minutes: int = 30, after_minutes: int = 30,
-                 lookahead_minutes: int = 120, medium_penalty: int = DEFAULT_MEDIUM_PENALTY):
+                 lookahead_minutes: int = 120, medium_penalty: int = DEFAULT_MEDIUM_PENALTY,
+                 fail_closed: bool = True):
         self.before_minutes    = before_minutes
         self.after_minutes     = after_minutes
         self.lookahead_minutes = lookahead_minutes
         self.medium_penalty    = int(medium_penalty)
+        # fail_closed=True: if the calendar cache is missing or unreadable, BLOCK
+        # new entries (safer — do not trade when news cannot be checked).
+        # fail_closed=False: pass trades when the calendar is unavailable.
+        self.fail_closed       = bool(fail_closed)
         self.sg_tz = pytz.timezone("Asia/Singapore")
         self.path = CALENDAR_CACHE_FILE
 
@@ -65,13 +70,21 @@ class NewsFilter:
 
     def get_status_now(self) -> dict:
         if not self.path.exists():
+            if self.fail_closed:
+                return {"blocked": True, "penalty": 0,
+                        "reason": "Calendar unavailable — fail-closed: blocking until first fetch",
+                        "severity": None}
             return {"blocked": False, "penalty": 0, "reason": "No calendar_cache.json found", "severity": None}
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 events = json.load(f)
         except Exception as e:
-            log.warning("Could not read calendar_cache.json (%s) — skipping news check.", e)
+            log.warning("Could not read calendar_cache.json (%s).", e)
+            if self.fail_closed:
+                return {"blocked": True, "penalty": 0,
+                        "reason": f"Calendar cache unreadable — fail-closed: blocking ({e})",
+                        "severity": None}
             return {"blocked": False, "penalty": 0, "reason": f"Calendar cache unreadable — news check skipped ({e})", "severity": None}
 
         now = datetime.now(self.sg_tz)

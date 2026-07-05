@@ -250,11 +250,13 @@ def msg_trade_closed(trade_id, direction, setup, entry, close_price,
 # ── 5. News block ─────────────────────────────────────────────────────────────
 
 def msg_news_block(event_name, event_time_sgt, before_min, after_min) -> str:
+    time_line = f"Time:   {event_time_sgt} SGT\n" if str(event_time_sgt).strip() else ""
+    window_line = f"Window: {before_min} min before / {after_min} min after\n" if str(event_time_sgt).strip() else ""
     return (
         f"🚫 Calendar Hard Lock\n{_DIV}\n"
         f"Event:  {event_name}\n"
-        f"Time:   {event_time_sgt} SGT\n"
-        f"Window: {before_min} min before / {after_min} min after\n"
+        f"{time_line}"
+        f"{window_line}"
         f"Action: Trade blocked"
     )
 
@@ -425,7 +427,7 @@ def msg_startup(
     tokyo_start=8, tokyo_end=15, london_start=16, london_end=20,
     us_start=21, us_end=23, max_total_open=2,
     position_full_usd=100, position_partial_usd=66, session_thresholds=None,
-    tg_min_score=3, h1_filter_enabled=True,
+    tg_min_score=3, h1_filter_enabled=True, news_fail_closed=True,
 ) -> str:
     thr     = session_thresholds or {}
     lon_thr = thr.get("London", min_score)
@@ -440,6 +442,7 @@ def msg_startup(
         f"Cycle: {cycle_minutes} min | Min score: {min_score}/6\n"
         f"Sizes: ${position_partial_usd} (score 4) | ${position_full_usd} (score 5–6)\n"
         f"{h1_line}"
+        f"News filter: ✅ ON | {'🔒 fail-closed' if news_fail_closed else '🔓 fail-open'}\n"
         f"Alerts: score ≥{tg_min_score} only\n"
         f"{_DIV}\n"
         f"Sessions (SGT)\n"
