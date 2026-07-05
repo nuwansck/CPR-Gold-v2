@@ -215,7 +215,7 @@ def ensure_persistent_settings() -> Path:
         if bundled_version and persistent.get("version") != bundled_version:
             changed["version"] = bundled_version
 
-        # v2.1.1 upgrade: force-overwrite keys whose VALUES changed this release
+        # v2.2 upgrade: force-overwrite keys whose VALUES changed this release
         # (not just newly-added keys). Runs only when the persistent version
         # differs from the bundled version, so it fires once per upgrade and then
         # leaves these keys alone. These are NOT auto-tuner-owned.

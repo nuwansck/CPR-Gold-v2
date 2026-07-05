@@ -448,12 +448,18 @@ def msg_startup(
     us_start=21, us_end=23, max_total_open=2,
     position_full_usd=100, position_partial_usd=66, session_thresholds=None,
     tg_min_score=3, h1_filter_enabled=True, news_fail_closed=True,
+    breakeven_enabled=False, breakeven_trigger_r=1.2,
+    daily_equity_cap_enabled=False, daily_equity_cap_percent=10.0,
+    signal_logging_enabled=False,
 ) -> str:
     thr     = session_thresholds or {}
     lon_thr = thr.get("London", min_score)
     us_thr  = thr.get("US",     min_score)
     tok_thr = thr.get("Tokyo",  thr.get("Asian", min_score + 1))
     h1_line = f"H1 filter: {'✅ ON' if h1_filter_enabled else '⬜ OFF'}\n"
+    be_str  = (f"✅ ON ({breakeven_trigger_r:g}R)" if breakeven_enabled else "⬜ OFF")
+    cap_str = (f"✅ {daily_equity_cap_percent:g}%/day" if daily_equity_cap_enabled else "⬜ OFF")
+    jrn_str = ("✅ ON" if signal_logging_enabled else "⬜ OFF")
     return (
         f"🚀 Bot Started\n{_DIV}\n"
         f"Mode: {mode} | Balance: ${balance:,.2f}\n"
@@ -464,6 +470,8 @@ def msg_startup(
         f"{h1_line}"
         f"News filter: ✅ ON | {'🔒 fail-closed' if news_fail_closed else '🔓 fail-open'}\n"
         f"Alerts: score ≥{tg_min_score} only\n"
+        f"Break-even: {be_str}  |  Equity cap: {cap_str}\n"
+        f"Journal: {jrn_str}\n"
         f"{_DIV}\n"
         f"Sessions (SGT)\n"
         f"✈️ {dead_zone_start:02d}:00–{dead_zone_end:02d}:59 Dead zone\n"

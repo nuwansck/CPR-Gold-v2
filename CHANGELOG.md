@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.2 — 2026-07-05 — Startup visibility + version roll-up
+
+Strategy unchanged. Operational/visibility update on top of v2.1.1.
+
+- **Startup Telegram card** now shows protection status so config drift is
+  visible on boot:
+  `Break-even: ✅ ON (1.2R)  |  Equity cap: ✅ 10%/day` and `Journal: ✅ ON`.
+  `msg_startup` gained `breakeven_enabled`, `breakeven_trigger_r`,
+  `daily_equity_cap_enabled`, `daily_equity_cap_percent`, `signal_logging_enabled`
+  (all wired from settings in scheduler.py).
+- Version rolled to 2.2 across code, settings, and docs. The version-gated
+  force-sync (breakeven_enabled / breakeven_trigger_usd) re-arms on the
+  2.1.1 → 2.2 change; it is a no-op if those values are already correct.
+- README / CONFLUENCE updated to reflect enabled break-even, daily equity cap,
+  and signal journal.
+
+
+# Changelog
+
 ## v2.1.1 — 2026-07-05 — Hotfix: force-enable breakeven on upgrade
 
 The v2.1 boot on Railway synced all NEW keys but could not flip two PRE-EXISTING

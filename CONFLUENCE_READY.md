@@ -1,4 +1,4 @@
-# CPR Gold Bot v2.0 — Design and Operations Document
+# CPR Gold Bot v2.2 — Design and Operations Document
 
 ## 1. Executive Summary
 

@@ -239,6 +239,12 @@ def main():
             session_thresholds=settings.get('session_thresholds', {}),
             h1_filter_enabled=bool(settings.get('h1_trend_filter_enabled', True)),
             news_fail_closed=bool(settings.get('news_fail_closed', True)),
+            breakeven_enabled=bool(settings.get('breakeven_enabled', False)),
+            breakeven_trigger_r=float(settings.get('breakeven_trigger_r', 1.2)),
+            daily_equity_cap_enabled=bool(settings.get('daily_equity_loss_cap_enabled', False)),
+            daily_equity_cap_percent=float(settings.get('daily_equity_loss_cap_percent', 10.0)),
+            signal_logging_enabled=bool(settings.get('signal_logging_enabled', False)),
+            max_total_open=int(settings.get('max_concurrent_trades', 1)),
         ))
     except Exception as _e:
         logger.warning('Could not send startup Telegram alert: %s', _e)
