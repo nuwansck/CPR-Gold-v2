@@ -1,8 +1,8 @@
-# CPR Gold Bot v2.2 — Design and Operations Document
+# CPR Gold Bot v2.5 — Design and Operations Document
 
 ## 1. Executive Summary
 
-CPR Gold Bot v2.0 is a Railway-ready automated trading bot for XAU/USD. It uses an M15 CPR breakout strategy, an H1+H4 EMA50 dual trend filter, ATR-based SL/TP, fixed-dollar risk sizing, a daily auto-tuner, Telegram state-change alerts, and CSV signal journaling.
+CPR Gold Bot v2.5 is a Railway-ready automated trading bot for XAU/USD. It uses an M15 CPR breakout strategy, an H1+H4 EMA50 dual trend filter, ATR-based SL/TP, fixed-dollar risk sizing, a daily auto-tuner, Telegram state-change alerts, and CSV signal journaling.
 
 ## 2. Strategy Specification
 

@@ -1,10 +1,10 @@
-# CPR Gold Bot v2.2 — XAU/USD CPR Breakout Bot
+# CPR Gold Bot v2.5 — XAU/USD CPR Breakout Bot
 
 CPR Gold Bot is a Railway-ready automated trading bot for XAU/USD. It uses an M15 CPR breakout strategy with an H1+H4 EMA50 dual trend filter, ATR-based SL/TP, fixed-dollar risk sizing, a daily auto-tuner, Telegram alerts, and CSV signal journaling.
 
 ## Current Version
 
-**v2.2** — Break-even, daily equity cap, and CSV signal journal enabled; startup Telegram card now shows protection status. Strategy unchanged from v2.0.
+**v2.5** — Settings now sync reliably: on any version bump the bundled settings.json wins for all keys (auto-tuner keys protected), so edits always apply. Includes v2.2 operational parity (break-even, 10% daily equity cap, CSV journal, startup protection display), v2.3 caps tuned to real throughput (4/day, 1 win/session, London 2 / US 2 / Asian 1) and force-synced, and v2.4 same-setup re-entry cooldown 10→30 min. Strategy unchanged from v2.0.
 
 ## Strategy Summary
 
@@ -21,6 +21,9 @@ CPR Gold Bot is a Railway-ready automated trading bot for XAU/USD. It uses an M1
 | Break-even | Enabled — SL→entry+spread+$0.2 buffer at 1.2R |
 | Daily equity cap | Enabled — 10% of balance/day, blocks new entries |
 | Signal journal | Enabled — CSV to /data/signal_log.csv (score ≥4) |
+| Trade caps | 4/day · 1 win/session · London 2 / US 2 / Asian 1 |
+| Same-setup cooldown | 30 min (2 M15 candles) |
+| Settings sync | Bundle-wins on version bump (tuner keys protected) |
 | Runtime | Railway container, 5-minute cycle |
 
 ## Risk & Sizing
