@@ -1,5 +1,37 @@
 # Changelog
 
+## v2.5 — 2026-07-05 — Bundle-wins-on-version-bump (settings sync, fixed for good)
+
+No strategy or settings-value changes. Fixes the recurring "I edited a setting
+but it didn't apply" problem permanently.
+
+- Replaced the per-key VERSION_FORCE_SYNC_KEYS allow-list with a general rule:
+  on ANY version bump, the bundled settings.json overwrites the /data volume for
+  ALL keys EXCEPT an explicit auto-tuner protect-list (signal_threshold,
+  rr_ratio, atr_sl_multiplier, sl_direction_cooldown_min, loss_streak_cooldown_min,
+  consecutive_sl_guard). Those keep the tuner's learning across deploys.
+- Workflow from now on: edit any setting → bump the version → redeploy → it applies.
+  No more adding keys to a force-sync list.
+- Verified by simulation: an arbitrary edited key applies on version bump; a
+  tuner-owned key on the volume is preserved.
+
+
+# Changelog
+
+## v2.4 — 2026-07-05 — Same-setup cooldown 10→30 (anti-churn)
+
+Strategy unchanged. Raises `same_setup_cooldown_min` from 10 to 30 minutes
+(2 M15 candles) so CPR doesn't immediately re-take the same level after a
+stop-out during a chop patch. Width hard-block intentionally NOT added — that
+stays a CPR-vs-Rogue difference.
+
+Fix: added `same_setup_cooldown_min` to VERSION_FORCE_SYNC_KEYS + bumped 2.3→2.4
+so the new value force-syncs onto the /data volume (a plain settings.json edit
+would have been ignored, same as the earlier cap issue).
+
+
+# Changelog
+
 ## v2.3 — 2026-07-05 — Force-sync tuned caps onto the volume
 
 Built from the uploaded v2.2 package (caps already edited to 4/2/2/1). Strategy

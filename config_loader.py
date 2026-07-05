@@ -113,7 +113,7 @@ DEFAULTS: dict = {
     "consecutive_sl_guard":        2,
     "sl_direction_cooldown_min":   180,
     "min_reentry_wait_min":        10,      # global post-SL cooldown (any setup)
-    "same_setup_cooldown_min":     10,      # same-setup-name re-entry cooldown
+    "same_setup_cooldown_min":     30,      # same-setup-name re-entry cooldown (v2.4: 10→30 for M15)
     "post_win_candle_block":       True,
     "post_win_cooldown_hours":     6,
     # News
@@ -215,20 +215,28 @@ def ensure_persistent_settings() -> Path:
         if bundled_version and persistent.get("version") != bundled_version:
             changed["version"] = bundled_version
 
-        # v2.3 upgrade: force-overwrite keys whose VALUES changed this release
-        # (not just newly-added keys). Runs only when the persistent version
-        # differs from the bundled version, so it fires once per upgrade and then
-        # leaves these keys alone. These are NOT auto-tuner-owned.
-        VERSION_FORCE_SYNC_KEYS = (
-            "breakeven_enabled", "breakeven_trigger_usd",
-            # v2.3: push the tuned trade-count caps onto existing volumes
-            "max_trades_day", "max_wins_day",
-            "max_trades_london", "max_trades_us", "max_trades_asian",
-        )
+        # ── Version-bump sync (v2.5): bundled settings win for ALL keys ──────
+        # On any version change, the BUNDLED settings.json becomes the source of
+        # truth and overwrites the persistent volume for every key EXCEPT the
+        # ones the daily auto-tuner owns (so its learning survives deploys).
+        # This replaces the old per-key VERSION_FORCE_SYNC_KEYS allow-list:
+        # edit ANY setting, bump the version, redeploy — and it applies.
+        # (If you edit a setting but DON'T bump the version, nothing changes —
+        #  the version bump is the deliberate "apply my edits" signal.)
+        AUTOTUNER_PROTECTED_KEYS = {
+            "signal_threshold",            # tuner raises/lowers based on hit-rate
+            "rr_ratio",                    # tuner adjusts reward:risk
+            "atr_sl_multiplier",           # tuner adjusts stop width
+            "sl_direction_cooldown_min",   # tuner adjusts post-loss cooldown
+            "loss_streak_cooldown_min",    # tuner adjusts streak cooldown
+            "consecutive_sl_guard",        # tuner adjusts loss-streak guard
+        }
         if bundled_version and persistent.get("version") != bundled_version:
-            for _fk in VERSION_FORCE_SYNC_KEYS:
-                if _fk in effective_defaults and persistent.get(_fk) != effective_defaults[_fk]:
-                    changed[_fk] = effective_defaults[_fk]
+            for _k, _v in bundled.items():
+                if _k in AUTOTUNER_PROTECTED_KEYS:
+                    continue                # leave tuner-owned keys as-is
+                if persistent.get(_k) != _v:
+                    changed[_k] = _v
 
         if changed:
             persistent.update(changed)
