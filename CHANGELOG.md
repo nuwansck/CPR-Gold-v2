@@ -1,3 +1,37 @@
+# Changelog
+
+## v2.1 — 2026-07-05 — Operational parity with Rogue-H1 (strategy unchanged)
+
+Strategy logic (M15 CPR breakout, dual H1+H4 EMA50 filter, scoring, thresholds,
+sessions, SL/TP model) is **unchanged**. This release only adds risk-management,
+safety and observability features so CPR and Rogue-H1 differ by strategy alone.
+
+Added / changed:
+- **Daily equity loss cap (#1):** new `daily_equity_loss_cap_enabled` (true) /
+  `daily_equity_loss_cap_percent` (10%). Blocks new entries once the day's
+  realised+unrealised P&L reaches −10% of effective balance; resets next trading day.
+- **Break-even (#2):** enabled and aligned to Rogue-H1 semantics — moves SL to
+  entry + spread + `breakeven_profit_buffer_usd` ($0.2) once profit ≥
+  `breakeven_trigger_r` (1.2R). Partial-close available but off by default.
+  Replaces the old (disabled) partial-close-at-1R behaviour.
+- **Signal journal + dashboard (#3):** ported `signal_logger.py` and
+  `dashboard/generate_report.py`. Logs FIRED trades and back-fills TP/SL/BE
+  outcomes to `/data/signal_log.csv`; equity-cap blocks are logged too.
+  Enabled via `signal_logging_enabled` (true), `signal_log_min_score` (4).
+- **ATR-unavailable hard block (#4a):** if ATR is unavailable, the signal is now
+  hard-blocked (previously the exhaustion check was silently skipped and the
+  trade could still fire on a degraded ATR-based SL).
+- **Bug fix (pre-existing):** `msg_daily_cap` was called with kwargs
+  (`day_start_sgt`/`day_end_sgt`/`day_reset_sgt`) the template never accepted,
+  which would raise a TypeError the moment the daily loss cap fired. Fixed to
+  use `reset_time_sgt`.
+
+Not changed (deliberately, to keep the A/B clean):
+- CPR-width hard block and the tightened moderate CPR-width band remain
+  Rogue-only. These change which trades are taken and would blur the M15-vs-H1
+  comparison; revisit only after demo data.
+
+
 # CPR Gold Bot v2.0 — Changelog
 
 ## v2.0 — Baseline

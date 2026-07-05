@@ -206,19 +206,24 @@ def msg_trade_opened(
 # ── 3. Breakeven ──────────────────────────────────────────────────────────────
 
 def msg_breakeven(trade_id, direction, entry, trigger_price, trigger_dist,
-                  current_price, unrealized_pnl, demo, price_dp=5) -> str:
+                  current_price, unrealized_pnl, demo, price_dp=5,
+                  new_sl_price=None, protected_offset_usd=None) -> str:
     mode = "DEMO" if demo else "LIVE"
+    sl_line = (
+        f"Protected SL: {float(new_sl_price):.{price_dp}f}\n"
+        if new_sl_price is not None else
+        f"Entry:   {entry:.{price_dp}f}  →  SL moved to entry\n"
+    )
+    offset_line = f"Buffer:  +${float(protected_offset_usd):.2f} beyond entry\n" if protected_offset_usd else ""
     return (
         f"🔒 Break-Even Protection Activated\n{_DIV}\n"
         f"{direction}  Trade #{trade_id}\n"
-        f"Entry:   {entry:.{price_dp}f}  →  SL moved to entry\n"
+        f"Entry:   {entry:.{price_dp}f}\n"
+        f"{sl_line}"
+        f"{offset_line}"
         f"Trigger: {trigger_price:.{price_dp}f}  (now: {current_price:.{price_dp}f})\n"
         f"PnL now: ${unrealized_pnl:+.2f}  |  Mode: {mode}"
     )
-
-
-# ── 4. Trade closed ───────────────────────────────────────────────────────────
-
 def msg_trade_closed(trade_id, direction, setup, entry, close_price,
                      pnl, session, demo, duration_str="", price_dp=5,
                      max_pips_reached=None) -> str:
@@ -296,7 +301,22 @@ def msg_cooldown_started(streak, cooldown_until_sgt, session_name="",
 # ── 8. Daily cap ──────────────────────────────────────────────────────────────
 
 def msg_daily_cap(cap_type, count, limit, window="", daily_pnl=None,
-                  session_name="", last_loss_time_sgt="", reset_time_sgt="") -> str:
+                  session_name="", last_loss_time_sgt="", reset_time_sgt="",
+                  balance=None, loss_percent=None, cap_percent=None) -> str:
+    if cap_type == "daily_equity_loss":
+        pline = f"Day P&L: ${daily_pnl:+.2f}\n" if daily_pnl is not None else ""
+        bal_line = f"Baseline: ${float(balance):,.2f}\n" if balance is not None else ""
+        pct_line = (
+            f"Loss: {float(loss_percent):.2f}% / {float(cap_percent):.2f}%\n"
+            if loss_percent is not None and cap_percent is not None else ""
+        )
+        rline = f"Resets:  {reset_time_sgt}\n" if reset_time_sgt else ""
+        return (
+            f"🛑 Daily Equity Loss Cap Hit\n{_DIV}\n"
+            f"Loss: ${float(count):,.2f} / ${float(limit):,.2f}\n"
+            f"{pct_line}{bal_line}{pline}{rline}"
+            f"New trades blocked until next trading day."
+        )
     label  = ("Max losing trades" if cap_type == "losing_trades"
               else ("Max trades/day" if cap_type == "total_trades" else f"{window} cap"))
     footer = "Resuming next trading day" if cap_type in ("losing_trades", "total_trades") else "Resuming next window"

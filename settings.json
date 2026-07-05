@@ -1,6 +1,6 @@
 {
-  "bot_name": "CPR Gold Bot v2.0",
-  "version": "2.0",
+  "bot_name": "CPR Gold Bot v2.1",
+  "version": "2.1",
   "demo_mode": true,
   "trade_gold": true,
   "_comment_strategy": "CPR Gold Bot v2.0 — M15 CPR breakout, H1+H4 EMA50 dual trend filter, ATR SL clamped $15-$17, RR 2.0 TP, fixed-dollar sizing ($100 for score >=5, $66 for score 4), daily auto-tuner. Risk does NOT scale with balance. All settings defaults centralized in config_loader.DEFAULTS.",
@@ -23,8 +23,8 @@
   "max_rr_ratio": 2.0,
   "trailing_stop_atr_mult": 0,
   "_comment_be": "Breakeven disabled — RR 2.0 and tight SL ceiling provide sufficient structural protection.",
-  "breakeven_enabled": false,
-  "breakeven_trigger_usd": 20.0,
+  "breakeven_enabled": true,
+  "breakeven_trigger_usd": 10.0,
   "_comment_trend": "Dual trend filter: H1 EMA50 + H4 EMA50. 0.15% buffer zone around H4 EMA prevents blocking on minor oscillations.",
   "h1_trend_filter_enabled": true,
   "h1_ema_period": 50,
@@ -100,5 +100,16 @@
   "london_report_hour_sgt": 21,
   "london_report_minute_sgt": 5,
   "us_report_hour_sgt": 1,
-  "us_report_minute_sgt": 5
+  "us_report_minute_sgt": 5,
+  "breakeven_trigger_r": 1.2,
+  "breakeven_include_spread": true,
+  "breakeven_spread_adjust": true,
+  "breakeven_profit_buffer_usd": 0.2,
+  "breakeven_partial_close_enabled": false,
+  "daily_equity_loss_cap_enabled": true,
+  "daily_equity_loss_cap_percent": 10.0,
+  "signal_logging_enabled": true,
+  "signal_log_min_score": 4,
+  "dashboard_enabled": true,
+  "dashboard_output_dir": "/data/dashboard"
 }

@@ -18,7 +18,7 @@ CPR Gold Bot is a Railway-ready automated trading bot for XAU/USD. It uses an M1
 | SL model | ATR-based (1.0× ATR, clamped $15–$17) |
 | TP model | RR multiple (2.0×) |
 | Risk model | Fixed-dollar: $100 (score ≥5) / $66 (score 4) |
-| Break-even | Disabled (tight SL + RR 2.0 provide structural protection) |
+| Break-even | Enabled — SL→entry+spread+$0.2 buffer at 1.2R (v2.1) |
 | Runtime | Railway container, 5-minute cycle |
 
 ## Risk & Sizing

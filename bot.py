@@ -51,6 +51,7 @@ from telegram_templates import (
     msg_margin_adjustment,
 )
 from reconcile_state import reconcile_runtime_state, startup_oanda_reconcile
+from signal_logger import log_signal, backfill_outcome
 from auto_tuner import run_auto_tune_after_trade_close
 
 configure_logging()
@@ -725,22 +726,61 @@ def send_once_per_state(alert, cache: dict, key: str, value: str, message: str):
 
 # ── Break-even management ──────────────────────────────────────────────────────
 
-def check_breakeven(history: list, trader, alert, settings: dict):
-    """Tiered exit management — .
-
-    Stage 1 (at 1x SL profit):
-      - Partial-close 50% of the position to lock realized profit.
-      - Move SL to breakeven so the runner is risk-free.
-
-    Stage 2:
-      - The server-side trailing stop (set at order placement) handles
-        the runner automatically — no further polling needed.
-
-    The ``breakeven_moved`` flag gates both stages so they fire at most
-    once per trade.
+def daily_equity_cap_context(daily_pnl: float, effective_balance: float, settings: dict) -> dict:
+    """Daily equity loss-cap status (account-currency, config-driven).
+    cap = daily_equity_loss_cap_percent × effective_balance.
     """
+    enabled = bool(settings.get("daily_equity_loss_cap_enabled", False))
+    try:
+        cap_percent = float(settings.get("daily_equity_loss_cap_percent", 0) or 0)
+    except (TypeError, ValueError):
+        cap_percent = 0.0
+    try:
+        balance = float(effective_balance or 0)
+    except (TypeError, ValueError):
+        balance = 0.0
+    cap_amount = round(balance * (cap_percent / 100.0), 2) if enabled and balance > 0 and cap_percent > 0 else 0.0
+    loss_amount = round(abs(float(daily_pnl or 0)), 2) if float(daily_pnl or 0) < 0 else 0.0
+    loss_percent = round((loss_amount / balance) * 100.0, 2) if balance > 0 else 0.0
+    return {
+        "enabled": enabled, "balance": balance, "cap_percent": cap_percent,
+        "cap_amount": cap_amount, "loss_amount": loss_amount, "loss_percent": loss_percent,
+        "hit": bool(enabled and cap_amount > 0 and float(daily_pnl or 0) <= -cap_amount),
+    }
+
+
+def send_daily_equity_cap_alert(alert, ops: dict, settings: dict, today: str, now_sgt: datetime,
+                                daily_pnl: float, effective_balance: float) -> bool:
+    """Send one dedup alert when the daily equity cap is hit. Returns True → stop cycle."""
+    cap = daily_equity_cap_context(daily_pnl, effective_balance, settings)
+    if not cap["hit"]:
+        return False
+    day_start_h = int(settings.get("trading_day_start_hour_sgt", 8))
+    day_reset_sgt = (now_sgt + timedelta(days=1)).replace(hour=day_start_h, minute=0, second=0, microsecond=0)
+    msg = msg_daily_cap(
+        "daily_equity_loss", cap["loss_amount"], cap["cap_amount"],
+        daily_pnl=daily_pnl, reset_time_sgt=day_reset_sgt.strftime("%Y-%m-%d %H:%M"),
+        balance=cap["balance"], loss_percent=cap["loss_percent"], cap_percent=cap["cap_percent"],
+    )
+    log_event("DAILY_EQUITY_CAP", msg)
+    send_once_per_state(alert, ops, "equity_cap_state", f"equity_cap:{today}", msg)
+    return True
+
+
+def check_breakeven(history: list, trader, alert, settings: dict):
+    """Break-even protection (v2.1 — aligned with Rogue-H1 for clean A/B).
+
+    At >= breakeven_trigger_r (R-multiple of trade risk, floor breakeven_trigger_usd):
+      - Optionally partial-close (disabled by default so BE stays simple).
+      - Move SL to entry + spread + profit buffer (BUY) or entry - offset (SELL).
+
+    Gated once per trade via the ``breakeven_moved`` flag. Enabled only when
+    ``breakeven_enabled`` is true.
+    """
+    if not bool(settings.get("breakeven_enabled", False)):
+        return
     demo    = settings.get("demo_mode", True)
-    sl_min  = float(settings.get("sl_min_usd", 20.0))
+    sl_min  = float(settings.get("sl_min_usd", 15.0))
     changed = False
 
     for trade in history:
@@ -767,63 +807,79 @@ def check_breakeven(history: list, trader, alert, settings: dict):
         except (TypeError, ValueError):
             continue
 
-        # Gate: trigger only when unrealized profit >= 1x SL risk
-        if unrealized_pnl < sl_usd:
+        trigger_r = float(settings.get("breakeven_trigger_r", 1.2) or 1.2)
+
+        # Compare currency-to-currency: trade risk = open units × SL distance.
+        try:
+            open_units = abs(float(open_trade.get("currentUnits", units_open or 0) or 0))
+        except (TypeError, ValueError):
+            open_units = abs(float(units_open or 0))
+        trade_risk_amount = open_units * float(sl_usd or 0)
+        if trade_risk_amount <= 0:
+            trade_risk_amount = float(trade.get("estimated_risk_usd") or trade.get("position_usd") or 0)
+        trigger_profit = max(trade_risk_amount * trigger_r, float(settings.get("breakeven_trigger_usd", 0) or 0))
+        if unrealized_pnl < trigger_profit:
             continue
 
         trigger_price = (
-            entry + sl_usd if direction == "BUY" else entry - sl_usd
+            entry + (sl_usd * trigger_r) if direction == "BUY" else entry - (sl_usd * trigger_r)
         )
 
-        # Stage 1a: partial close 50%
+        # Optional partial close (off by default).
         partial_ok = False
-        if units_open and units_open > 0:
-            half_units   = round(units_open * 0.5, 1)
-            close_result = trader.close_partial(str(trade_id), half_units)
+        if settings.get("breakeven_partial_close_enabled", False) and units_open and units_open > 0:
+            close_ratio  = float(settings.get("breakeven_partial_close_ratio", 0.5) or 0.5)
+            close_units  = round(units_open * close_ratio, 1)
+            close_result = trader.close_partial(str(trade_id), close_units)
             partial_ok   = close_result.get("success", False)
             if partial_ok:
                 realized = close_result.get("realized_pnl", 0)
-                log.info(
-                    "Partial close %.1f units | trade %s | unrealized=+$%.2f | realized=+$%.2f",
-                    half_units, trade_id, unrealized_pnl, realized,
-                )
+                log.info("Partial close %.1f units | trade %s | unrealized=+$%.2f | realized=+$%.2f",
+                         close_units, trade_id, unrealized_pnl, realized)
             else:
-                log.warning(
-                    "Partial close failed for trade %s: %s",
-                    trade_id, close_result.get("error"),
-                )
+                log.warning("Partial close failed for trade %s: %s", trade_id, close_result.get("error"))
 
-        # Stage 1b: move SL to breakeven on remaining position
-        sl_result = trader.modify_sl(str(trade_id), float(entry))
+        # Move SL to entry + spread + buffer (BUY) or entry - offset (SELL).
+        be_price = float(entry)
+        spread_usd = 0.0
+        if settings.get("breakeven_include_spread", True) or settings.get("breakeven_spread_adjust", False):
+            try:
+                _spread_pips = float(trade.get("spread_pips") or 0)
+                _pip = 0.01  # XAU_USD pip size
+                spread_usd = max(0.0, _spread_pips * _pip)
+            except (TypeError, ValueError):
+                spread_usd = 0.0
+        buffer_usd = max(0.0, float(settings.get("breakeven_profit_buffer_usd", 0.0) or 0.0))
+        offset_usd = spread_usd + buffer_usd
+        if offset_usd > 0:
+            be_price = (entry + offset_usd) if direction == "BUY" else (entry - offset_usd)
+            log.info("BE protect | trade %s | entry=%.2f → SL=%.2f (spread=$%.2f buffer=$%.2f)",
+                     trade_id, entry, be_price, spread_usd, buffer_usd)
+        sl_result = trader.modify_sl(str(trade_id), round(be_price, 2))
         if sl_result.get("success"):
             trade["breakeven_moved"] = True
             trade["partial_closed"]  = partial_ok
             changed = True
-            log.info(
-                "Breakeven set | trade %s | entry=%.2f | unrealized=+$%.2f | partial=%s",
-                trade_id, entry, unrealized_pnl, partial_ok,
-            )
+            log.info("Breakeven set | trade %s | entry=%.2f | unrealized=+$%.2f | partial=%s",
+                     trade_id, entry, unrealized_pnl, partial_ok)
             alert.send(msg_breakeven(
                 trade_id=trade_id,
                 direction=direction,
                 entry=entry,
                 trigger_price=trigger_price,
-                trigger_usd=sl_usd,
+                trigger_dist=sl_usd,
                 current_price=trigger_price,
                 unrealized_pnl=unrealized_pnl,
                 demo=demo,
+                new_sl_price=round(be_price, 2),
+                protected_offset_usd=round(offset_usd, 2),
             ))
         else:
-            log.warning(
-                "Breakeven SL move failed for trade %s: %s",
-                trade_id, sl_result.get("error"),
-            )
+            log.warning("Breakeven SL move failed for trade %s: %s", trade_id, sl_result.get("error"))
 
     if changed:
         save_history(history)
 
-
-# Consecutive-direction loss guard helper
 
 def _count_consecutive_sl(history: list, direction: str) -> int:
     """Count consecutive SL-hit trades in the same direction.
@@ -858,6 +914,10 @@ def backfill_pnl(history: list, trader, alert, settings: dict) -> list:
                     trade["realized_pnl_usd"] = pnl
                     trade["closed_at_sgt"] = datetime.now(SGT).strftime("%Y-%m-%d %H:%M:%S")
                     changed = True
+                    try:
+                        backfill_outcome(str(trade_id), "TP" if pnl > 0 else ("SL" if pnl < 0 else "BE"), float(pnl), settings=settings)
+                    except Exception as _bo_exc:
+                        log.warning("signal_logger backfill_outcome failed: %s", _bo_exc)
                     log.info("Back-filled P&L trade %s: $%.2f", trade_id, pnl)
                     if not trade.get("closed_alert_sent"):
                         try:
@@ -1000,8 +1060,7 @@ def _guard_phase(db, run_id, settings, alert, trader, history, now_sgt, today, d
         _day_reset = (now_sgt + timedelta(days=1)).replace(hour=_day_start_h, minute=0, second=0, microsecond=0)
         msg = msg_daily_cap(
             "losing_trades", _early_losses, _max_losses_early,
-            day_start_sgt=f"{_day_start_h:02d}:00", day_end_sgt="01:00",  # US session closes 00:59 SGT
-            day_reset_sgt=_day_reset.strftime("%Y-%m-%d %H:%M"),
+            reset_time_sgt=_day_reset.strftime("%Y-%m-%d %H:%M"),
         )
         log_event("COOLDOWN_ACTIVE", msg, run_id=run_id)
         send_once_per_state(alert, ops, "loss_cap_state", f"loss_cap:{today}", msg)
@@ -1137,13 +1196,32 @@ def _guard_phase(db, run_id, settings, alert, trader, history, now_sgt, today, d
         day_reset_sgt = (now_sgt + timedelta(days=1)).replace(hour=day_start_h, minute=0, second=0, microsecond=0)
         msg = msg_daily_cap(
             "losing_trades", daily_losses, max_losses,
-            day_start_sgt=f"{day_start_h:02d}:00", day_end_sgt="01:00",  # US session closes 00:59 SGT
-            day_reset_sgt=day_reset_sgt.strftime("%Y-%m-%d %H:%M"),
+            reset_time_sgt=day_reset_sgt.strftime("%Y-%m-%d %H:%M"),
         )
         log_event("COOLDOWN_ACTIVE", msg, run_id=run_id)
         send_once_per_state(alert, ops, "loss_cap_state", f"loss_cap:{today}", msg)
         update_runtime_state(last_cycle_finished=now_sgt.strftime("%Y-%m-%d %H:%M:%S"), status="SKIPPED_LOSS_CAP")
         db.finish_cycle(run_id, status="SKIPPED", summary={"stage": "daily_caps", "reason": "loss_cap"})
+        return None
+
+    # ── Daily equity loss cap (#1 — account-currency, parity with Rogue) ──────
+    effective_balance = get_effective_balance(balance, settings)
+    if send_daily_equity_cap_alert(alert, ops, settings, today, now_sgt, daily_pnl, effective_balance):
+        _cap_ctx = daily_equity_cap_context(daily_pnl, effective_balance, settings)
+        log_signal(
+            settings=settings, score=0, direction="NONE", session=(session or ""),
+            levels={}, action="BLOCKED_DAILY_EQUITY_CAP",
+            block_reason=(f"Daily equity loss cap hit: ${_cap_ctx['loss_amount']:.2f}/"
+                          f"${_cap_ctx['cap_amount']:.2f} ({_cap_ctx['loss_percent']:.2f}%/"
+                          f"{_cap_ctx['cap_percent']:.2f}%)"),
+            details="New trades blocked until next trading-day reset.",
+            daily_pnl=daily_pnl,
+            daily_equity_loss_cap_percent=_cap_ctx["cap_percent"],
+            daily_equity_loss_cap_amount=_cap_ctx["cap_amount"],
+            effective_balance=effective_balance,
+        )
+        update_runtime_state(last_cycle_finished=now_sgt.strftime("%Y-%m-%d %H:%M:%S"), status="SKIPPED_EQUITY_CAP")
+        db.finish_cycle(run_id, status="SKIPPED", summary={"stage": "daily_caps", "reason": "daily_equity_loss_cap", "daily_pnl": daily_pnl})
         return None
 
     # ── Session win cap (stop trading after N wins in the CURRENT SESSION) ─────
@@ -1835,6 +1913,16 @@ def _execution_phase(db, run_id, settings, alert, trader, history, now_sgt, toda
 
     history.append(record)
     save_history(history)
+    try:
+        log_signal(
+            settings=settings, score=score, direction=direction, session=(session or ""),
+            levels=levels, action="FIRED", block_reason="Trade opened",
+            sl_usd=sl_usd, tp_usd=tp_usd, rr_ratio=rr_ratio, position_usd=position_usd,
+            units=units, spread_pips=spread_pips,
+            trade_id=str(record.get("trade_id") or ""),
+        )
+    except Exception as _ls_exc:
+        log.warning("signal_logger FIRED row failed: %s", _ls_exc)
     db.record_trade_attempt(
         {"pair": INSTRUMENT, "timeframe": settings.get("timeframe", "M15"), "side": direction, "score": score, **record},
         ok=bool(result.get("success")), note=result.get("error", "trade placed"),

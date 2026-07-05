@@ -1,4 +1,4 @@
-"""Signal engine for CPR breakout detection on XAU/USD — v2.0
+"""Signal engine for CPR breakout detection on XAU/USD — v2.1
 
 Scoring (Bull):
   Main condition  — price above CPR/PDH/R1: +2 | above R2 (extended): +1
@@ -420,7 +420,14 @@ class SignalEngine:
                     f"(≤{exhaustion_atr_mult:.1f}× threshold) — ok (+0)"
                 )
         else:
-            reasons.append("⚠️ ATR unavailable — exhaustion check skipped")
+            # v2.1 SAFETY (#4a): ATR unavailable compromises BOTH the ATR-based SL
+            # sizing and the exhaustion guard. Trading blind is unsafe, so hard-block
+            # rather than silently skip. Fires only on a genuine data gap.
+            reasons.append("🚫 ATR unavailable — trade blocked (SL sizing + exhaustion guard require ATR)")
+            log.warning("CPR signal BLOCKED — ATR unavailable (fail-safe)")
+            levels["score"] = 0
+            levels["signal_blockers"] = ["ATR unavailable — SL sizing/exhaustion guard require ATR"]
+            return 0, "NONE", " | ".join(reasons), levels, 0
 
         # ── Position size ──────────────────────────────────────────────────
         position_usd = score_to_position_usd(score, settings)

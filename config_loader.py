@@ -57,9 +57,22 @@ DEFAULTS: dict = {
     "sl_pct":                      0.0025,
     "tp_pct":                      0.0075,
     "trailing_stop_atr_mult":      0,       # 0 = disabled; default in execution code was 0.5 — explicit 0 prevents silent activation
-    # Breakeven
-    "breakeven_enabled":           False,
-    "breakeven_trigger_usd":       20.0,
+    # Breakeven (v2.1 — enabled, Rogue-aligned semantics)
+    "breakeven_enabled":               True,
+    "breakeven_trigger_r":             1.2,
+    "breakeven_trigger_usd":           10.0,
+    "breakeven_include_spread":        True,
+    "breakeven_spread_adjust":         True,
+    "breakeven_profit_buffer_usd":     0.2,
+    "breakeven_partial_close_enabled": False,
+    # Daily equity loss cap (v2.1 #1)
+    "daily_equity_loss_cap_enabled":   True,
+    "daily_equity_loss_cap_percent":   10.0,
+    # Signal journal + dashboard (v2.1 #3)
+    "signal_logging_enabled":          True,
+    "signal_log_min_score":            4,
+    "dashboard_enabled":               True,
+    "dashboard_output_dir":            "/data/dashboard",
     # Trend filters
     "h1_trend_filter_enabled":     True,
     "h1_ema_period":               50,
