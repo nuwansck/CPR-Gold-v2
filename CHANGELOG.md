@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.1.1 — 2026-07-05 — Hotfix: force-enable breakeven on upgrade
+
+The v2.1 boot on Railway synced all NEW keys but could not flip two PRE-EXISTING
+keys, because config_loader only injects missing keys and never overwrites
+existing ones (to protect auto-tuner state). Result: on a volume upgraded from
+v2.0, `breakeven_enabled` stayed `false` and `breakeven_trigger_usd` stayed
+`20.0` — so breakeven was silently OFF despite the package being correct.
+
+Fix:
+- Added a version-gated `VERSION_FORCE_SYNC_KEYS` overwrite in
+  `ensure_persistent_settings()` for `breakeven_enabled` and
+  `breakeven_trigger_usd`. It fires once when the persistent version differs
+  from the bundled version, then leaves the keys alone. Auto-tuner-owned keys
+  (e.g. `signal_threshold`) are NOT touched.
+- Bumped version to 2.1.1 so the gate re-triggers (the first v2.1 boot had
+  already written `version: 2.1` to the volume).
+
+Verified by simulating an upgraded volume: breakeven_enabled false→true,
+trigger 20→10, signal_threshold preserved.
+
+
+# Changelog
+
 ## v2.1 — 2026-07-05 — Operational parity with Rogue-H1 (strategy unchanged)
 
 Strategy logic (M15 CPR breakout, dual H1+H4 EMA50 filter, scoring, thresholds,
