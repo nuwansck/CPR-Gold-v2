@@ -1,6 +1,6 @@
 {
-  "bot_name": "CPR Gold Bot v2.5",
-  "version": "2.5",
+  "bot_name": "CPR Gold Bot v2.6",
+  "version": "2.6",
   "demo_mode": true,
   "trade_gold": true,
   "_comment_strategy": "CPR Gold Bot v2.0 — M15 CPR breakout, H1+H4 EMA50 dual trend filter, ATR SL clamped $15-$17, RR 2.0 TP, fixed-dollar sizing ($100 for score >=5, $66 for score 4), daily auto-tuner. Risk does NOT scale with balance. All settings defaults centralized in config_loader.DEFAULTS.",

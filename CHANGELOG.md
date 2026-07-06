@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.6 — 2026-07-06 — Fix reported RR + actual-risk logging (data integrity)
+
+No strategy or execution change — trades are placed exactly as before. Fixes two
+data-integrity bugs surfaced by the first live trade, so signal_log.csv / trade
+records are accurate for analysis.
+
+- **derive_rr_ratio** returned the signal engine's fixed-pct *recommendation*
+  ratio (e.g. 3.0 = 0.75%/0.25%) instead of the ACTUAL placed reward:risk
+  (tp_usd/sl_usd, e.g. 2.0). Now computed from the real SL/TP. The RR gate and
+  the logged/CSV RR now reflect the order actually placed. (CPR min_rr=max_rr=2.0,
+  so no trading behavior changes — the placed RR was always 2.0; only the
+  reported number was wrong.)
+- **estimated_risk_usd** logged the *intended* $100 even when margin protection
+  down-scaled the position (e.g. 6.6→4.7 units → ~$70 real risk). Now logs the
+  actual risk = units × sl_usd, so risk and reward in the record are consistent.
+- `levels['rr_ratio']` in the trade record is now set to the actual placed RR
+  (was showing the stale 3.0 recommendation).
+
+NOTE (operational, not a code issue): at simulated gold ~$4,183 on a $5.3k
+account, a full $100-risk position needs ~$3.9k margin, so margin protection
+down-scales it (real risk ~$70) and hits CPR (tight SL, more units) harder than
+Rogue (wider SL, fewer units). To restore the $100 risk model and equalise the
+A/B, raise the demo account balance (~$25–50k). This is an OANDA-side change.
+
+# Changelog
+
 ## v2.5 — 2026-07-05 — Bundle-wins-on-version-bump (settings sync, fixed for good)
 
 No strategy or settings-value changes. Fixes the recurring "I edited a setting

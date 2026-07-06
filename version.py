@@ -1,3 +1,3 @@
 """Single source of version truth for CPR Gold Bot."""
-__version__ = "2.5"
+__version__ = "2.6"
 BOT_NAME    = "CPR Gold Bot"

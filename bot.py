@@ -565,12 +565,14 @@ def compute_tp_usd(levels: dict, sl_usd: float, settings: dict) -> float:
 
 
 def derive_rr_ratio(levels: dict, sl_usd: float, tp_usd: float, settings: dict) -> float:
-    try:
-        rr = float(levels.get("rr_ratio"))
-        if rr > 0:
-            return rr
-    except (TypeError, ValueError):
-        pass
+    """Actual reward:risk of the order about to be placed.
+
+    v2.6 fix: compute from the ACTUAL sl_usd/tp_usd used for the order — not from
+    the signal engine's stale fixed-pct recommendation (levels['rr_ratio']),
+    which was the ratio of two independent % recommendations (e.g. 0.75/0.25=3.0)
+    rather than the placed RR (e.g. 30/15=2.0). The recommendation stays in
+    `levels` for transparency but no longer drives the reported RR or the RR gate.
+    """
     if sl_usd > 0 and tp_usd > 0:
         return round(tp_usd / sl_usd, 2)
     return float(settings.get("rr_ratio", 2.65))
@@ -1577,6 +1579,7 @@ def _signal_phase(db, run_id, settings, alert, trader, history, now_sgt, today, 
     sl_usd   = compute_sl_usd(levels, settings)
     tp_usd   = compute_tp_usd(levels, sl_usd, settings)
     rr_ratio = derive_rr_ratio(levels, sl_usd, tp_usd, settings)
+    levels["rr_ratio"] = rr_ratio  # v2.6: record the ACTUAL placed RR, not the fixed-pct recommendation
     units    = calculate_units_from_position(position_usd, sl_usd)
     tp_pct   = (tp_usd / entry * 100) if entry > 0 else None
 
@@ -1810,7 +1813,7 @@ def _execution_phase(db, run_id, settings, alert, trader, history, now_sgt, toda
         "cpr_width_pct":        cpr_w,
         "sl_usd":               round(sl_usd, 2),
         "tp_usd":               round(tp_usd, 2),
-        "estimated_risk_usd":   round(position_usd, 2),
+        "estimated_risk_usd":   round(units * sl_usd, 2),  # v2.6: actual risk after any margin down-scale, not intended $100
         "estimated_reward_usd": round(reward_usd, 2),
         "spread_pips":          spread_pips,
         "stop_pips":            stop_pips,
